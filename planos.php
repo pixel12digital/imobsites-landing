@@ -5,38 +5,81 @@ $plansEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/plans/public-list.php';
 $plans = [];
 $fetchError = null;
 
+function fetchPlansApiResponse(string $endpoint, int $timeoutSeconds = 10): ?string
+{
+    if (!function_exists('curl_init')) {
+        error_log('[plans.debug] cURL extension is not available.');
+        return null;
+    }
+
+    $ch = curl_init($endpoint);
+
+    if ($ch === false) {
+        error_log('[plans.debug] Failed to initialize cURL.');
+        return null;
+    }
+
+    error_log('[plans.debug] Requesting endpoint: ' . $endpoint);
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeoutSeconds,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_HTTPGET => true,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'User-Agent: ImobSites-Landing/1.0',
+        ],
+    ]);
+
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $curlErrno = curl_errno($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $responseSize = is_string($response) ? strlen($response) : 0;
+
+    curl_close($ch);
+
+    if ($response === false) {
+        error_log(sprintf('[plans.debug] cURL exec failed (errno %d): %s', $curlErrno, $curlError ?: 'unknown error'));
+        return null;
+    }
+
+    if ($httpCode >= 400 || $httpCode === 0) {
+        error_log(sprintf('[plans.debug] Unexpected HTTP status %d. Body preview: %s', $httpCode, substr($response, 0, 500)));
+        return null;
+    }
+
+    error_log(sprintf('[plans.debug] Request completed (HTTP %d, %d bytes).', $httpCode, $responseSize));
+
+    return $response;
+}
+
 if (!filter_var($plansEndpoint, FILTER_VALIDATE_URL)) {
     $fetchError = 'URL da API de planos inválida. Verifique a constante PANEL_API_BASE_URL.';
 } else {
-    $httpOptions = [
-        'http' => [
-            'method' => 'GET',
-            'header' => [
-                'Accept: application/json',
-                'User-Agent: ImobSites-Landing/1.0',
-            ],
-            'timeout' => 10,
-        ],
-    ];
+    $response = fetchPlansApiResponse($plansEndpoint);
 
-    $context = stream_context_create($httpOptions);
-    $response = @file_get_contents($plansEndpoint, false, $context);
-
-    if ($response === false) {
+    if ($response === null) {
         $fetchError = 'Não foi possível carregar os planos neste momento. Tente novamente em alguns instantes.';
     } else {
         $decoded = json_decode($response, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             $fetchError = 'Recebemos uma resposta inesperada do servidor ao listar os planos.';
+            error_log('[plans.debug] JSON decode failed: ' . json_last_error_msg());
         } elseif (isset($decoded['success']) && $decoded['success'] === false) {
             $fetchError = $decoded['message'] ?? 'Não foi possível carregar os planos.';
+            error_log('[plans.debug] API returned error: ' . ($decoded['message'] ?? 'sem mensagem'));
         } elseif (isset($decoded['data']) && is_array($decoded['data'])) {
             $plans = $decoded['data'];
+            error_log(sprintf('[plans.debug] Loaded %d plans from API (data key).', count($plans)));
         } elseif (is_array($decoded)) {
             $plans = $decoded;
+            error_log(sprintf('[plans.debug] Loaded %d plans from API (root array).', count($plans)));
         } else {
             $fetchError = 'Nenhum plano disponível no momento.';
+            error_log('[plans.debug] API response structure not recognized.');
         }
     }
 }
