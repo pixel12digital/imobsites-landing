@@ -1,11 +1,11 @@
 <?php
 require __DIR__ . '/config.php';
 
-$plansEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/plans/public-list.php';
+$apiUrl = PANEL_API_BASE_URL . '/api/plans/public-list.php';
 $plans = [];
 $fetchError = null;
 
-function fetchPlansApiResponse(string $endpoint, int $timeoutSeconds = 10): ?string
+function getApiJson(string $endpoint, int $timeoutSeconds = 10)
 {
     if (!function_exists('curl_init')) {
         error_log('[plans.debug] cURL extension is not available.');
@@ -52,35 +52,37 @@ function fetchPlansApiResponse(string $endpoint, int $timeoutSeconds = 10): ?str
 
     error_log(sprintf('[plans.debug] Request completed (HTTP %d, %d bytes).', $httpCode, $responseSize));
 
-    return $response;
+    $decoded = json_decode($response, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('[plans.debug] JSON decode failed: ' . json_last_error_msg());
+        return null;
+    }
+
+    return $decoded;
 }
 
-if (!filter_var($plansEndpoint, FILTER_VALIDATE_URL)) {
+if (!filter_var($apiUrl, FILTER_VALIDATE_URL)) {
     $fetchError = 'URL da API de planos inválida. Verifique a constante PANEL_API_BASE_URL.';
 } else {
-    $response = fetchPlansApiResponse($plansEndpoint);
+    error_log('[plans.debug] Tentando carregar planos de: ' . $apiUrl);
+    $decoded = getApiJson($apiUrl);
 
-    if ($response === null) {
+    if ($decoded === null) {
         $fetchError = 'Não foi possível carregar os planos neste momento. Tente novamente em alguns instantes.';
+    } elseif (isset($decoded['success']) && $decoded['success'] === true && isset($decoded['plans']) && is_array($decoded['plans'])) {
+        $plans = $decoded['plans'];
+        error_log(sprintf('[plans.debug] Loaded %d plans from API (plans key).', count($plans)));
+    } elseif (isset($decoded['success']) && $decoded['success'] === false) {
+        $fetchError = $decoded['message'] ?? 'Não foi possível carregar os planos.';
+        error_log('[plans.debug] API returned error: ' . ($decoded['message'] ?? 'sem mensagem'));
+    } elseif (is_array($decoded) && isset($decoded[0]) && is_array($decoded[0])) {
+        $plans = $decoded;
+        error_log(sprintf('[plans.debug] Loaded %d plans from API (root array).', count($plans)));
     } else {
-        $decoded = json_decode($response, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $fetchError = 'Recebemos uma resposta inesperada do servidor ao listar os planos.';
-            error_log('[plans.debug] JSON decode failed: ' . json_last_error_msg());
-        } elseif (isset($decoded['success']) && $decoded['success'] === false) {
-            $fetchError = $decoded['message'] ?? 'Não foi possível carregar os planos.';
-            error_log('[plans.debug] API returned error: ' . ($decoded['message'] ?? 'sem mensagem'));
-        } elseif (isset($decoded['data']) && is_array($decoded['data'])) {
-            $plans = $decoded['data'];
-            error_log(sprintf('[plans.debug] Loaded %d plans from API (data key).', count($plans)));
-        } elseif (is_array($decoded)) {
-            $plans = $decoded;
-            error_log(sprintf('[plans.debug] Loaded %d plans from API (root array).', count($plans)));
-        } else {
-            $fetchError = 'Nenhum plano disponível no momento.';
-            error_log('[plans.debug] API response structure not recognized.');
-        }
+        error_log('[plans.debug] Formato inesperado da resposta de planos: ' . substr(json_encode($decoded), 0, 500));
+        $fetchError = 'Recebemos uma resposta inesperada do servidor ao listar os planos.';
+        $plans = [];
     }
 }
 

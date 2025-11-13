@@ -4,8 +4,8 @@ require __DIR__ . '/config.php';
 $planCode = isset($_GET['plan']) ? trim($_GET['plan']) : null;
 $mode = isset($_GET['mode']) ? trim($_GET['mode']) : null;
 
-$plansEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/plans/public-list.php';
-$orderEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/orders/create.php';
+$plansEndpoint = PANEL_API_BASE_URL . '/api/plans/public-list.php';
+$orderEndpoint = PANEL_API_BASE_URL . '/api/orders/create.php';
 $availablePlans = [];
 $selectedPlan = null;
 $fetchError = null;
@@ -36,6 +36,10 @@ function fetchPlans(string $endpoint): array
 
     if (json_last_error() !== JSON_ERROR_NONE) {
         throw new RuntimeException('Resposta inválida do servidor ao carregar os planos.');
+    }
+
+    if (isset($decoded['success']) && $decoded['success'] === true && isset($decoded['plans']) && is_array($decoded['plans'])) {
+        return $decoded['plans'];
     }
 
     if (isset($decoded['success']) && $decoded['success'] === false) {
