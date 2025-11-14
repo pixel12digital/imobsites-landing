@@ -726,11 +726,29 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
             const apiUrl = '<?php echo PANEL_API_BASE_URL; ?>/api/orders/create.php';
             console.log('[checkout.debug] URL da API:', apiUrl);
 
+            // Headers básicos
+            const headers = {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'ImobSites-Landing/1.0'
+            };
+
+            // Adicionar headers de autenticação se configurados (opcional para sandbox/testes)
+            <?php if (defined('PANEL_API_KEY') && !empty(PANEL_API_KEY)): ?>
+            headers['X-API-Key'] = '<?php echo addslashes(PANEL_API_KEY); ?>';
+            console.log('[checkout.debug] Header X-API-Key adicionado');
+            <?php endif; ?>
+
+            <?php if (defined('PANEL_API_TOKEN') && !empty(PANEL_API_TOKEN)): ?>
+            headers['Authorization'] = 'Bearer <?php echo addslashes(PANEL_API_TOKEN); ?>';
+            console.log('[checkout.debug] Header Authorization Bearer adicionado');
+            <?php endif; ?>
+
+            console.log('[checkout.debug] Headers da requisição:', headers);
+
             const response = await fetch(apiUrl, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
+              headers: headers,
               body: JSON.stringify(payload)
             });
 
