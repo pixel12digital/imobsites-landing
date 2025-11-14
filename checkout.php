@@ -508,9 +508,13 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         <?php endif; ?>
 
         <?php if ($fetchError === null && $orderSuccess === null): ?>
+          <div class="alert alert-error" data-checkout-error style="display:none;">
+            Não foi possível finalizar o pedido agora. Tente novamente em alguns instantes.
+          </div>
+
           <div class="checkout-grid">
             <div class="card">
-              <form method="post" novalidate>
+              <form id="checkout-form" method="post" novalidate>
                 <input type="hidden" name="plan_code" value="<?php echo htmlspecialchars((string) $planCode, ENT_QUOTES, 'UTF-8'); ?>" />
 
                 <div>
@@ -613,6 +617,162 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
     <footer>
       <div class="container">© <?php echo date('Y'); ?> ImobSites. Todos os direitos reservados.</div>
     </footer>
+
+    <script>
+      // Função utilitária para exibir erro no checkout
+      function mostrarErroCheckout(msg) {
+        const el = document.querySelector('[data-checkout-error]');
+        if (!el) {
+          alert(msg); // fallback se não achar o elemento
+          return;
+        }
+
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+
+      // Função para limpar erro
+      function limparErroCheckout() {
+        const el = document.querySelector('[data-checkout-error]');
+        if (el) {
+          el.textContent = '';
+          el.style.display = 'none';
+        }
+      }
+
+      // Handler único de submit do formulário
+      document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('checkout-form');
+        if (!form) {
+          console.error('[checkout.debug] Formulário #checkout-form não encontrado.');
+          return;
+        }
+
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          limparErroCheckout();
+          console.log('[checkout.debug] Submit disparado');
+
+          // Coletar campos
+          const planSelectElement = form.querySelector('select[name="plan_code"]');
+          const planHiddenInput = form.querySelector('input[type="hidden"][name="plan_code"]');
+          const nomeInput = form.querySelector('[name="customer_name"]');
+          const emailInput = form.querySelector('[name="customer_email"]');
+          const whatsappInput = form.querySelector('[name="customer_phone"]');
+          const empresaInput = form.querySelector('[name="company_name"]');
+          const termosCheckbox = form.querySelector('[name="accept_terms"]');
+
+          // Obter o código do plano (prioriza o select se existir, senão usa o hidden input)
+          let planCode = null;
+          if (planSelectElement && planSelectElement.value) {
+            planCode = planSelectElement.value;
+          } else if (planHiddenInput && planHiddenInput.value) {
+            planCode = planHiddenInput.value;
+          }
+
+          const customerName = nomeInput ? nomeInput.value.trim() : '';
+          const customerEmail = emailInput ? emailInput.value.trim() : '';
+          const customerWhatsapp = whatsappInput ? whatsappInput.value.trim() : '';
+          const companyName = empresaInput ? empresaInput.value.trim() : '';
+          const termosAceitos = termosCheckbox ? termosCheckbox.checked : false;
+
+          console.log('[checkout.debug] Dados coletados:', {
+            planCode,
+            customerName,
+            customerEmail,
+            customerWhatsapp,
+            companyName,
+            termosAceitos
+          });
+
+          // Validação básica
+          if (!planCode) {
+            mostrarErroCheckout('Selecione um plano para continuar.');
+            console.warn('[checkout.debug] Validação falhou: planCode vazio');
+            return;
+          }
+
+          if (!customerName || !customerEmail || !customerWhatsapp) {
+            mostrarErroCheckout('Preencha seu nome, e-mail e telefone/WhatsApp para continuar.');
+            console.warn('[checkout.debug] Validação falhou: campos obrigatórios vazios');
+            return;
+          }
+
+          // Validação básica de e-mail
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(customerEmail)) {
+            mostrarErroCheckout('Informe um e-mail válido.');
+            console.warn('[checkout.debug] Validação falhou: e-mail inválido');
+            return;
+          }
+
+          if (!termosAceitos) {
+            mostrarErroCheckout('Você precisa aceitar os termos de uso e a política de privacidade para finalizar a contratação.');
+            console.warn('[checkout.debug] Validação falhou: termos não aceitos');
+            return;
+          }
+
+          const payload = {
+            plan_code: planCode,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_whatsapp: customerWhatsapp,
+            company_name: companyName
+          };
+
+          console.log('[checkout.debug] Enviando requisição para criar pedido...', payload);
+
+          try {
+            const apiUrl = '<?php echo PANEL_API_BASE_URL; ?>/api/orders/create.php';
+            console.log('[checkout.debug] URL da API:', apiUrl);
+
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+            });
+
+            let data = null;
+            try {
+              data = await response.json();
+            } catch (e) {
+              console.error('[checkout.debug] Erro ao parsear JSON da resposta:', e);
+            }
+
+            console.log('[checkout.debug] Resposta da API de pedido:', {
+              status: response.status,
+              data
+            });
+
+            if (!response.ok || !data) {
+              mostrarErroCheckout('Não foi possível finalizar o pedido agora. Tente novamente em alguns instantes.');
+              return;
+            }
+
+            if (data.success === true && data.payment_url) {
+              // Sucesso: redireciona para o payment_url do Asaas
+              console.log('[checkout.debug] Pedido criado com sucesso, redirecionando para:', data.payment_url);
+              window.location.href = data.payment_url;
+              return;
+            }
+
+            if (data.success === false && data.message) {
+              // Erro de negócio vindo da API (ex.: plano inválido, erro Asaas, etc.)
+              mostrarErroCheckout(data.message);
+              return;
+            }
+
+            // Qualquer outra situação inesperada
+            mostrarErroCheckout('Recebemos uma resposta inesperada do servidor ao finalizar o pedido.');
+          } catch (error) {
+            console.error('[checkout.debug] Erro de rede ao criar pedido:', error);
+            mostrarErroCheckout('Não foi possível finalizar o pedido agora. Verifique sua conexão e tente novamente.');
+          }
+        });
+      });
+    </script>
   </body>
 </html>
 
