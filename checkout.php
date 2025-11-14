@@ -115,8 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fetchError === null) {
         $errors[] = 'Informe seu CPF ou CNPJ.';
     }
 
-    if (!in_array($paymentMethod, ['pix', 'credit_card'], true)) {
-        $errors[] = 'Selecione uma forma de pagamento válida.';
+    // Validar payment_method (permitir apenas pix, boleto ou credit_card)
+    if (!in_array($paymentMethod, ['pix', 'boleto', 'credit_card'], true)) {
+        $paymentMethod = 'pix'; // Fallback para PIX se valor inválido
     }
 
     if (!$acceptTerms) {
@@ -686,6 +687,39 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         }
       }
 
+      fieldset {
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      legend {
+        font-weight: 600;
+        color: var(--color-primary);
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      .link-back {
+        text-align: center;
+        font-size: 0.95rem;
+        color: var(--color-text-muted);
+        text-decoration: none;
+        margin-top: 8px;
+        display: block;
+        transition: color 0.3s ease;
+      }
+
+      .link-back:hover {
+        color: var(--color-primary);
+      }
+
+      .link-back:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
       @media (max-width: 720px) {
         nav {
           display: none;
@@ -835,6 +869,9 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
                 Falar com suporte pelo WhatsApp
               </a>
             </div>
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="planos.php" class="link-back">Escolher outro plano</a>
+            </div>
           </div>
         <?php elseif ($orderError !== null): ?>
           <div class="alert alert-error"><?php echo htmlspecialchars($orderError, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -873,21 +910,39 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
                   <input type="text" id="customer_cpf_cnpj" name="customer_cpf_cnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00" value="<?php echo htmlspecialchars($_POST['customer_cpf_cnpj'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required />
                 </div>
 
-                <div>
-                  <label>Forma de pagamento</label>
+                <fieldset>
+                  <legend>Forma de pagamento</legend>
                   <div class="radio-group">
                     <div class="radio-option">
-                      <input type="radio" id="payment_pix" name="payment_method" value="pix" <?php echo (!isset($_POST['payment_method']) || ($_POST['payment_method'] ?? 'pix') === 'pix') ? 'checked' : ''; ?> required />
-                      <label for="payment_pix">PIX</label>
+                      <input type="radio" id="payment_method_pix" name="payment_method" value="pix" <?php echo (!isset($_POST['payment_method']) || ($_POST['payment_method'] ?? 'pix') === 'pix') ? 'checked' : ''; ?> required />
+                      <label for="payment_method_pix">PIX (recomendado)</label>
                     </div>
                     <div class="radio-option">
-                      <input type="radio" id="payment_card" name="payment_method" value="credit_card" <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'checked' : ''; ?> />
-                      <label for="payment_card">Cartão de Crédito</label>
+                      <input type="radio" id="payment_method_boleto" name="payment_method" value="boleto" <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'boleto') ? 'checked' : ''; ?> />
+                      <label for="payment_method_boleto">Boleto bancário</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="payment_method_credit_card" name="payment_method" value="credit_card" <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'checked' : ''; ?> />
+                      <label for="payment_method_credit_card">Cartão de crédito</label>
                     </div>
                   </div>
-                </div>
+                </fieldset>
 
                 <div id="card-fields" class="card-fields" style="display: <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'grid' : 'none'; ?>;">
+                  <?php
+                  // Calcular valores para parcelamento
+                  $totalAmount = null;
+                  $maxInstallments = 12;
+                  if ($selectedPlan !== null) {
+                      $totalAmount = isset($selectedPlan['total_amount']) ? (float) $selectedPlan['total_amount'] : null;
+                      if ($totalAmount === null && isset($selectedPlan['price_per_month']) && isset($selectedPlan['months'])) {
+                          $totalAmount = (float) $selectedPlan['price_per_month'] * (int) $selectedPlan['months'];
+                      }
+                      if (isset($selectedPlan['months'])) {
+                          $maxInstallments = min((int) $selectedPlan['months'], 12);
+                      }
+                  }
+                  ?>
                   <div>
                     <label for="card_holder_name">Nome do titular do cartão</label>
                     <input type="text" id="card_holder_name" name="card_holder_name" placeholder="Nome como está no cartão" value="<?php echo htmlspecialchars($_POST['card_holder_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
@@ -933,12 +988,38 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
                     </div>
                     <div>
                       <label for="payment_installments">Parcelas</label>
-                      <select id="payment_installments" name="payment_installments">
-                        <?php for ($i = 1; $i <= 12; $i++): ?>
-                          <option value="<?php echo $i; ?>" <?php echo (isset($_POST['payment_installments']) && $_POST['payment_installments'] == $i) ? 'selected' : ($i === 1 ? 'selected' : ''); ?>>
+                      <?php
+                      $selectedInstallments = isset($_POST['payment_installments']) ? (int) $_POST['payment_installments'] : $maxInstallments;
+                      ?>
+                      <select id="payment_installments" name="payment_installments" data-total-amount="<?php echo $totalAmount !== null ? htmlspecialchars(number_format($totalAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8') : ''; ?>">
+                        <?php
+                        if ($totalAmount !== null && $totalAmount > 0) {
+                            for ($i = 1; $i <= $maxInstallments; $i++):
+                                $installmentValue = $totalAmount / $i;
+                                $isSelected = ($selectedInstallments == $i) ? 'selected' : '';
+                                if ($i === 1) {
+                                    $label = sprintf('1x de %s (total %s)', formatCurrency($installmentValue), formatCurrency($totalAmount));
+                                } else {
+                                    $label = sprintf('%dx de %s (total %s)', $i, formatCurrency($installmentValue), formatCurrency($totalAmount));
+                                }
+                        ?>
+                          <option value="<?php echo $i; ?>" <?php echo $isSelected; ?>>
+                            <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
+                          </option>
+                        <?php
+                            endfor;
+                        } else {
+                            // Fallback se não houver total_amount
+                            for ($i = 1; $i <= 12; $i++):
+                                $isSelected = ($selectedInstallments == $i) ? 'selected' : '';
+                        ?>
+                          <option value="<?php echo $i; ?>" <?php echo $isSelected; ?>>
                             <?php echo $i === 1 ? 'À vista' : $i . 'x'; ?>
                           </option>
-                        <?php endfor; ?>
+                        <?php
+                            endfor;
+                        }
+                        ?>
                       </select>
                     </div>
                   </div>
@@ -952,6 +1033,19 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
                     <label for="card_address_number">Número do endereço</label>
                     <input type="text" id="card_address_number" name="card_address_number" placeholder="123" value="<?php echo htmlspecialchars($_POST['card_address_number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
                   </div>
+                  <?php if ($totalAmount !== null && $totalAmount > 0): ?>
+                    <p id="installment-summary" style="margin-top: 8px; font-size: 0.95rem; color: var(--color-text-muted); display: <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'block' : 'none'; ?>;">
+                      <?php
+                      $defaultInstallments = $selectedInstallments;
+                      $defaultInstallmentValue = $totalAmount / $defaultInstallments;
+                      if ($defaultInstallments === 1) {
+                          echo sprintf('Você está escolhendo pagar à vista: %s (total %s sem juros).', formatCurrency($defaultInstallmentValue), formatCurrency($totalAmount));
+                      } else {
+                          echo sprintf('Você está escolhendo pagar em %dx de %s (total %s sem juros).', $defaultInstallments, formatCurrency($defaultInstallmentValue), formatCurrency($totalAmount));
+                      }
+                      ?>
+                    </p>
+                  <?php endif; ?>
                 </div>
 
                 <div class="checkbox-group">
@@ -963,6 +1057,7 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
 
                 <div style="display: grid; gap: 12px;">
                   <button type="submit" class="btn btn-primary">Finalizar contratação</button>
+                  <a href="planos.php" class="link-back">Voltar para os planos</a>
                   <?php if ($mode === 'consultor'): ?>
                     <a href="mailto:contato@imobsites.com?subject=Quero%20falar%20com%20um%20consultor%20ImobSites" class="btn btn-secondary">Prefiro falar com um consultor</a>
                   <?php else: ?>
@@ -1030,28 +1125,81 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        const paymentPix = document.getElementById('payment_pix');
-        const paymentCard = document.getElementById('payment_card');
+        const paymentPix = document.getElementById('payment_method_pix');
+        const paymentBoleto = document.getElementById('payment_method_boleto');
+        const paymentCard = document.getElementById('payment_method_credit_card');
         const cardFields = document.getElementById('card-fields');
+        const installmentSelect = document.getElementById('payment_installments');
+        const installmentSummary = document.getElementById('installment-summary');
 
         function toggleCardFields() {
-          if (paymentCard.checked) {
-            cardFields.style.display = 'grid';
-            // Tornar campos obrigatórios
-            cardFields.querySelectorAll('input, select').forEach(function(field) {
-              field.setAttribute('required', 'required');
-            });
+          if (paymentCard && paymentCard.checked) {
+            if (cardFields) {
+              cardFields.style.display = 'grid';
+              // Tornar campos obrigatórios
+              cardFields.querySelectorAll('input, select').forEach(function(field) {
+                field.setAttribute('required', 'required');
+              });
+            }
+            if (installmentSummary) {
+              installmentSummary.style.display = 'block';
+            }
           } else {
-            cardFields.style.display = 'none';
-            // Remover obrigatoriedade
-            cardFields.querySelectorAll('input, select').forEach(function(field) {
-              field.removeAttribute('required');
-            });
+            if (cardFields) {
+              cardFields.style.display = 'none';
+              // Remover obrigatoriedade
+              cardFields.querySelectorAll('input, select').forEach(function(field) {
+                field.removeAttribute('required');
+              });
+            }
+            if (installmentSummary) {
+              installmentSummary.style.display = 'none';
+            }
           }
         }
 
-        paymentPix.addEventListener('change', toggleCardFields);
-        paymentCard.addEventListener('change', toggleCardFields);
+        function updateInstallmentSummary() {
+          if (!installmentSelect || !installmentSummary) return;
+          
+          const totalAmount = parseFloat(installmentSelect.getAttribute('data-total-amount') || '0');
+          if (totalAmount <= 0) return;
+
+          const installments = parseInt(installmentSelect.value || '1', 10);
+          const installmentValue = totalAmount / installments;
+
+          const formattedTotal = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(totalAmount);
+
+          const formattedInstallment = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(installmentValue);
+
+          if (installments === 1) {
+            installmentSummary.textContent = `Você está escolhendo pagar à vista: ${formattedInstallment} (total ${formattedTotal} sem juros).`;
+          } else {
+            installmentSummary.textContent = `Você está escolhendo pagar em ${installments}x de ${formattedInstallment} (total ${formattedTotal} sem juros).`;
+          }
+        }
+
+        if (paymentPix) {
+          paymentPix.addEventListener('change', toggleCardFields);
+        }
+        if (paymentBoleto) {
+          paymentBoleto.addEventListener('change', toggleCardFields);
+        }
+        if (paymentCard) {
+          paymentCard.addEventListener('change', toggleCardFields);
+        }
+        if (installmentSelect) {
+          installmentSelect.addEventListener('change', updateInstallmentSummary);
+        }
+
+        // Inicializar estado
+        toggleCardFields();
+        updateInstallmentSummary();
 
         // Máscaras
         const whatsappInput = document.getElementById('customer_whatsapp');
