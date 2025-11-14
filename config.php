@@ -38,3 +38,8 @@ if (!defined('PANEL_API_BASE_URL')) {
 // - Authorization: Bearer token
 // - X-Auth-Token: token de autenticação
 
+// Número de WhatsApp para suporte (formato internacional sem +)
+if (!defined('SUPPORT_WHATSAPP_NUMBER')) {
+    define('SUPPORT_WHATSAPP_NUMBER', '5547999999999'); // Ajustar para o número real
+}
+

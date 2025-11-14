@@ -12,6 +12,7 @@ $fetchError = null;
 $orderSuccess = null;
 $orderError = null;
 $paymentMethod = null;
+$checkoutSuccess = false;
 
 function fetchPlans(string $endpoint): array
 {
@@ -222,13 +223,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fetchError === null) {
                         $orderError = 'Não foi possível processar seu pedido no momento. Tente novamente em alguns instantes.';
                     } elseif (isset($data['success']) && $data['success'] === true) {
                         $orderId = $data['order_id'] ?? null;
+                        $paymentMethodFromApi = $data['payment_method'] ?? $paymentMethod;
                         $paymentUrl = $data['payment_url'] ?? null;
+                        $pixPayload = $data['pix_payload'] ?? null;
+                        $pixQrCode = $data['pix_qr_code_image'] ?? null;
+                        $boletoLine = $data['boleto_line'] ?? null;
+                        $status = $data['status'] ?? null;
 
                         $orderSuccess = [
                             'order_id' => $orderId,
                             'payment_url' => $paymentUrl,
-                            'payment_method' => $paymentMethod,
+                            'payment_method' => $paymentMethodFromApi,
+                            'pix_payload' => $pixPayload,
+                            'pix_qr_code_image' => $pixQrCode,
+                            'boleto_line' => $boletoLine,
+                            'status' => $status,
                         ];
+                        $checkoutSuccess = true;
                     } else {
                         $orderError = $data['message'] ?? 'Não foi possível finalizar seu pedido.';
                     }
@@ -557,6 +568,83 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         margin-bottom: 0;
       }
 
+      .checkout-success-container {
+        margin-bottom: 32px;
+      }
+
+      .checkout-pix-section,
+      .checkout-boleto-section,
+      .checkout-card-section {
+        margin-top: 24px;
+      }
+
+      .checkout-pix-section h3,
+      .checkout-boleto-section h3,
+      .checkout-card-section h3 {
+        margin-top: 0;
+        color: var(--color-primary);
+      }
+
+      .checkout-pix-qr {
+        text-align: center;
+        margin: 24px 0;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: var(--radius-base);
+        border: 1px solid var(--color-border-soft);
+      }
+
+      .checkout-pix-qr img {
+        max-width: 280px;
+        width: 100%;
+        height: auto;
+        margin: 0 auto;
+        display: block;
+      }
+
+      .checkout-pix-copy {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .checkout-pix-copy textarea {
+        font-family: monospace;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      .checkout-boleto-line {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .checkout-boleto-line input {
+        font-family: monospace;
+        font-size: 1rem;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+
+      .btn-sm {
+        padding: 12px 20px;
+        font-size: 0.95rem;
+      }
+
+      .btn-outline-success {
+        background: transparent;
+        border: 2px solid var(--color-success);
+        color: var(--color-success);
+      }
+
+      .btn-outline-success:hover {
+        background: var(--color-success);
+        color: #fff;
+        transform: translateY(-2px);
+      }
+
       .plan-summary h2 {
         margin-top: 0;
         color: var(--color-primary);
@@ -639,35 +727,117 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
 
         <?php if ($fetchError !== null): ?>
           <div class="alert alert-error"><?php echo htmlspecialchars($fetchError, ENT_QUOTES, 'UTF-8'); ?></div>
+        <?php elseif (!empty($checkoutSuccess) && $checkoutSuccess === true && $orderSuccess !== null): ?>
+          <div class="checkout-success-container">
+            <div class="alert alert-success">
+              <h2 style="margin-top: 0; margin-bottom: 12px;">Pedido criado com sucesso!</h2>
+              <p>Enviamos os detalhes do pagamento para o seu e-mail.</p>
+              <p>Você pode usar as opções abaixo para concluir o pagamento agora.</p>
+              <?php if (!empty($orderSuccess['order_id'])): ?>
+                <p style="margin-top: 16px; margin-bottom: 0;"><strong>Nº do pedido:</strong> <?php echo htmlspecialchars((string) $orderSuccess['order_id'], ENT_QUOTES, 'UTF-8'); ?></p>
+              <?php endif; ?>
+            </div>
+
+            <?php
+            $paymentMethod = $orderSuccess['payment_method'] ?? null;
+            $orderId = $orderSuccess['order_id'] ?? null;
+            $paymentUrl = $orderSuccess['payment_url'] ?? null;
+            $pixPayload = $orderSuccess['pix_payload'] ?? null;
+            $pixQrCode = $orderSuccess['pix_qr_code_image'] ?? null;
+            $boletoLine = $orderSuccess['boleto_line'] ?? null;
+            ?>
+
+            <?php if ($paymentMethod === 'pix'): ?>
+              <div class="checkout-pix-section card">
+                <h3>Pague com Pix</h3>
+                <p>Abra o app do seu banco e escaneie o QR Code abaixo:</p>
+
+                <?php if (!empty($pixQrCode)): ?>
+                  <div class="checkout-pix-qr">
+                    <img
+                      src="<?php echo strpos($pixQrCode, 'data:image') === 0 ? htmlspecialchars($pixQrCode, ENT_QUOTES, 'UTF-8') : 'data:image/png;base64,' . htmlspecialchars($pixQrCode, ENT_QUOTES, 'UTF-8'); ?>"
+                      alt="QR Code Pix"
+                    >
+                  </div>
+                <?php endif; ?>
+
+                <?php if (!empty($pixPayload)): ?>
+                  <p style="margin-top: 24px;">Se preferir, copie o código Pix "copia e cola":</p>
+                  <div class="checkout-pix-copy">
+                    <textarea id="pixPayload" readonly rows="3"><?php echo htmlspecialchars($pixPayload, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    <button type="button" class="btn btn-sm" onclick="copyPixPayload()">Copiar código Pix</button>
+                  </div>
+                <?php endif; ?>
+
+                <?php if (!empty($paymentUrl)): ?>
+                  <p class="checkout-pix-link" style="margin-top: 20px;">
+                    <a href="<?php echo htmlspecialchars($paymentUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="btn btn-secondary">
+                      Ver página de pagamento Pix
+                    </a>
+                  </p>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+
+            <?php if ($paymentMethod === 'boleto'): ?>
+              <div class="checkout-boleto-section card">
+                <h3>Pague com boleto</h3>
+                <p>Use o código abaixo no seu internet banking ou app:</p>
+
+                <?php if (!empty($boletoLine)): ?>
+                  <div class="checkout-boleto-line">
+                    <input
+                      type="text"
+                      id="boletoLine"
+                      readonly
+                      value="<?php echo htmlspecialchars($boletoLine, ENT_QUOTES, 'UTF-8'); ?>"
+                    >
+                    <button type="button" class="btn btn-sm" onclick="copyBoletoLine()">Copiar linha digitável</button>
+                  </div>
+                <?php endif; ?>
+
+                <?php if (!empty($paymentUrl)): ?>
+                  <p class="checkout-boleto-link" style="margin-top: 20px;">
+                    <a href="<?php echo htmlspecialchars($paymentUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="btn btn-secondary">
+                      Ver boleto completo
+                    </a>
+                  </p>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+
+            <?php if ($paymentMethod === 'credit_card'): ?>
+              <div class="checkout-card-section card">
+                <h3>Pagamento com cartão realizado</h3>
+                <p>Estamos processando a confirmação junto à administradora. Você receberá um e-mail com as instruções de acesso à plataforma.</p>
+
+                <?php if (!empty($orderId)): ?>
+                  <p style="margin-top: 16px;"><strong>Nº do pedido:</strong> <?php echo htmlspecialchars((string) $orderId, ENT_QUOTES, 'UTF-8'); ?></p>
+                <?php endif; ?>
+
+                <?php if (!empty($paymentUrl)): ?>
+                  <p class="checkout-card-link" style="margin-top: 20px;">
+                    <a href="<?php echo htmlspecialchars($paymentUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="btn btn-secondary">
+                      Ver detalhes do pagamento
+                    </a>
+                  </p>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+
+            <?php
+            $waNumber = defined('SUPPORT_WHATSAPP_NUMBER') ? SUPPORT_WHATSAPP_NUMBER : '5547999999999';
+            $waText = "Olá, acabei de fazer um pedido no ImobSites e gostaria de confirmar o pagamento. Nº do pedido: " . ($orderId ?: 'N/A');
+            $waUrl = "https://wa.me/{$waNumber}?text=" . urlencode($waText);
+            ?>
+            <div class="checkout-support-whatsapp" style="margin-top: 24px; text-align: center;">
+              <a href="<?php echo htmlspecialchars($waUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" class="btn btn-outline-success">
+                Falar com suporte pelo WhatsApp
+              </a>
+            </div>
+          </div>
         <?php elseif ($orderError !== null): ?>
           <div class="alert alert-error"><?php echo htmlspecialchars($orderError, ENT_QUOTES, 'UTF-8'); ?></div>
-        <?php elseif ($orderSuccess !== null): ?>
-          <div class="alert alert-success">
-            <?php if ($orderSuccess['payment_method'] === 'pix' && !empty($orderSuccess['payment_url'])): ?>
-              <p><strong>Pedido criado com sucesso!</strong></p>
-              <p>Seu pedido foi registrado e está aguardando pagamento via PIX.</p>
-              <p style="margin-top: 16px;">
-                <a href="<?php echo htmlspecialchars($orderSuccess['payment_url'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" target="_blank" rel="noopener">
-                  Ver QR Code / Página de pagamento PIX
-                </a>
-              </p>
-            <?php elseif ($orderSuccess['payment_method'] === 'credit_card'): ?>
-              <p><strong>Pagamento com cartão processado!</strong></p>
-              <p>Você receberá as instruções de acesso por e-mail.</p>
-            <?php else: ?>
-              <p><strong>Pedido criado com sucesso!</strong></p>
-              <?php if (!empty($orderSuccess['payment_url'])): ?>
-                <p style="margin-top: 16px;">
-                  <a href="<?php echo htmlspecialchars($orderSuccess['payment_url'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" target="_blank" rel="noopener">
-                    Acessar link de pagamento
-                  </a>
-                </p>
-              <?php endif; ?>
-            <?php endif; ?>
-            <?php if (!empty($orderSuccess['order_id'])): ?>
-              <p style="margin-top: 12px; font-size: 0.9rem;">Código do pedido: <?php echo htmlspecialchars((string) $orderSuccess['order_id'], ENT_QUOTES, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </div>
         <?php endif; ?>
 
         <?php if ($fetchError === null && $orderSuccess === null): ?>
@@ -936,6 +1106,47 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
           });
         }
       });
+
+      function copyPixPayload() {
+        const el = document.getElementById('pixPayload');
+        if (!el) return;
+
+        const text = el.value || el.innerText;
+        if (!text) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            alert('Código Pix copiado para a área de transferência.');
+          }).catch(function () {
+            alert('Não foi possível copiar automaticamente. Copie o código manualmente.');
+          });
+        } else {
+          // fallback simples
+          el.select();
+          document.execCommand('copy');
+          alert('Código Pix copiado para a área de transferência.');
+        }
+      }
+
+      function copyBoletoLine() {
+        const el = document.getElementById('boletoLine');
+        if (!el) return;
+
+        const text = el.value || el.innerText;
+        if (!text) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            alert('Linha digitável copiada para a área de transferência.');
+          }).catch(function () {
+            alert('Não foi possível copiar automaticamente. Copie o código manualmente.');
+          });
+        } else {
+          el.select();
+          document.execCommand('copy');
+          alert('Linha digitável copiada para a área de transferência.');
+        }
+      }
     </script>
   </body>
 </html>
