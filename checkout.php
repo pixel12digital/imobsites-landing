@@ -4,13 +4,14 @@ require __DIR__ . '/config.php';
 $planCode = isset($_GET['plan']) ? trim($_GET['plan']) : null;
 $mode = isset($_GET['mode']) ? trim($_GET['mode']) : null;
 
-$plansEndpoint = PANEL_API_BASE_URL . '/api/plans/public-list.php';
-$orderEndpoint = PANEL_API_BASE_URL . '/api/orders/create.php';
+$plansEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/plans/public-list.php';
+$orderEndpoint = rtrim(PANEL_API_BASE_URL, '/') . '/api/orders/create.php';
 $availablePlans = [];
 $selectedPlan = null;
 $fetchError = null;
 $orderSuccess = null;
 $orderError = null;
+$paymentMethod = null;
 
 function fetchPlans(string $endpoint): array
 {
@@ -83,14 +84,19 @@ try {
 
 // Trata submissão do formulário
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fetchError === null) {
+    $planCodePost = trim($_POST['plan_code'] ?? '');
     $customerName = trim($_POST['customer_name'] ?? '');
     $customerEmail = trim($_POST['customer_email'] ?? '');
-    $customerPhone = trim($_POST['customer_phone'] ?? '');
-    $companyName = trim($_POST['company_name'] ?? '');
+    $customerWhatsapp = trim($_POST['customer_whatsapp'] ?? '');
+    $customerCpfCnpj = trim($_POST['customer_cpf_cnpj'] ?? '');
+    $paymentMethod = trim($_POST['payment_method'] ?? 'pix');
     $acceptTerms = isset($_POST['accept_terms']);
-    $planCodePost = trim($_POST['plan_code'] ?? '');
 
     $errors = [];
+
+    if ($planCodePost === '') {
+        $errors[] = 'Selecione um plano para continuar.';
+    }
 
     if ($customerName === '') {
         $errors[] = 'Informe seu nome completo.';
@@ -100,72 +106,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $fetchError === null) {
         $errors[] = 'Informe um e-mail válido.';
     }
 
-    if ($customerPhone === '') {
+    if ($customerWhatsapp === '') {
         $errors[] = 'Informe um telefone ou WhatsApp para contato.';
+    }
+
+    if ($customerCpfCnpj === '') {
+        $errors[] = 'Informe seu CPF ou CNPJ.';
+    }
+
+    if (!in_array($paymentMethod, ['pix', 'credit_card'], true)) {
+        $errors[] = 'Selecione uma forma de pagamento válida.';
     }
 
     if (!$acceptTerms) {
         $errors[] = 'É necessário aceitar os termos de uso e política de privacidade.';
     }
 
-    if ($planCodePost === '') {
-        $errors[] = 'Selecione um plano para continuar.';
-    }
+    // Validações específicas para cartão
+    if ($paymentMethod === 'credit_card') {
+        $cardHolderName = trim($_POST['card_holder_name'] ?? '');
+        $cardNumber = trim($_POST['card_number'] ?? '');
+        $cardExpiryMonth = trim($_POST['card_expiry_month'] ?? '');
+        $cardExpiryYear = trim($_POST['card_expiry_year'] ?? '');
+        $cardCcv = trim($_POST['card_ccv'] ?? '');
+        $cardPostalCode = trim($_POST['card_postal_code'] ?? '');
+        $cardAddressNumber = trim($_POST['card_address_number'] ?? '');
 
-    if (!isset($availablePlans) || empty($availablePlans)) {
-        $errors[] = 'Não há planos disponíveis para contratação.';
+        if ($cardHolderName === '') {
+            $errors[] = 'Informe o nome do titular do cartão.';
+        }
+        if (preg_replace('/\D+/', '', $cardNumber) === '') {
+            $errors[] = 'Informe o número do cartão.';
+        }
+        if ($cardExpiryMonth === '' || $cardExpiryYear === '') {
+            $errors[] = 'Informe a data de validade do cartão.';
+        }
+        if ($cardCcv === '') {
+            $errors[] = 'Informe o código de segurança (CCV) do cartão.';
+        }
+        if (preg_replace('/\D+/', '', $cardPostalCode) === '') {
+            $errors[] = 'Informe o CEP do titular do cartão.';
+        }
+        if ($cardAddressNumber === '') {
+            $errors[] = 'Informe o número do endereço do titular do cartão.';
+        }
     }
 
     if (!empty($errors)) {
         $orderError = implode(' ', $errors);
     } else {
+        // Montar payload base
         $payload = [
             'plan_code' => $planCodePost,
             'customer_name' => $customerName,
             'customer_email' => $customerEmail,
-            'customer_phone' => $customerPhone,
-            'company_name' => $companyName,
-            'source' => 'landing_site',
+            'customer_whatsapp' => preg_replace('/\D+/', '', $customerWhatsapp),
+            'customer_cpf_cnpj' => preg_replace('/\D+/', '', $customerCpfCnpj),
+            'payment_method' => $paymentMethod,
         ];
 
-        $httpOptions = [
-            'http' => [
-                'method' => 'POST',
-                'header' => [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                    'User-Agent: ImobSites-Landing/1.0',
-                ],
-                'content' => json_encode($payload),
-                'timeout' => 15,
-            ],
-        ];
+        // Adicionar dados do cartão se necessário
+        if ($paymentMethod === 'credit_card') {
+            $payload['payment_installments'] = (int)($_POST['payment_installments'] ?? 1);
 
-        if (!filter_var($orderEndpoint, FILTER_VALIDATE_URL)) {
+            $payload['card'] = [
+                'holderName' => trim($_POST['card_holder_name'] ?? ''),
+                'number' => preg_replace('/\D+/', '', $_POST['card_number'] ?? ''),
+                'expiryMonth' => $_POST['card_expiry_month'] ?? '',
+                'expiryYear' => $_POST['card_expiry_year'] ?? '',
+                'ccv' => $_POST['card_ccv'] ?? '',
+                'postalCode' => preg_replace('/\D+/', '', $_POST['card_postal_code'] ?? ''),
+                'addressNumber' => trim($_POST['card_address_number'] ?? ''),
+                'cpfCnpj' => preg_replace('/\D+/', '', $customerCpfCnpj),
+                'email' => $customerEmail,
+                'mobilePhone' => preg_replace('/\D+/', '', $customerWhatsapp),
+            ];
+        }
+
+        // Fazer chamada à API usando cURL
+        if (!function_exists('curl_init')) {
+            $orderError = 'Não foi possível processar seu pedido. Serviço temporariamente indisponível.';
+        } elseif (!filter_var($orderEndpoint, FILTER_VALIDATE_URL)) {
             $orderError = 'URL da API de pedidos inválida. Ajuste a configuração.';
         } else {
-            $context = stream_context_create($httpOptions);
-            $response = @file_get_contents($orderEndpoint, false, $context);
+            $ch = curl_init($orderEndpoint);
 
-            if ($response === false) {
-                $orderError = 'Não foi possível finalizar o pedido agora. Tente novamente em alguns instantes.';
+            if ($ch === false) {
+                $orderError = 'Não foi possível processar seu pedido no momento. Tente novamente em alguns instantes.';
             } else {
-                $decodedResponse = json_decode($response, true);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => json_encode($payload),
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'Accept: application/json',
+                        'User-Agent: ImobSites-Landing/1.0',
+                    ],
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                ]);
 
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    $orderError = 'Recebemos uma resposta inesperada ao criar o pedido.';
-                } elseif (!isset($decodedResponse['success']) || $decodedResponse['success'] !== true) {
-                    $orderError = $decodedResponse['message'] ?? 'Não foi possível finalizar seu pedido.';
+                $response = curl_exec($ch);
+                $curlError = curl_error($ch);
+                $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($response === false || !empty($curlError)) {
+                    $orderError = 'Não foi possível processar seu pedido no momento. Tente novamente em alguns instantes.';
                 } else {
-                    $orderId = $decodedResponse['order_id'] ?? null;
-                    $paymentUrl = $decodedResponse['payment_url'] ?? null;
-                    $message = $decodedResponse['message'] ?? 'Pedido criado com sucesso!';
+                    $data = json_decode($response, true);
 
-                    $orderSuccess = [
-                        'message' => $message,
-                        'order_id' => $orderId,
-                        'payment_url' => $paymentUrl,
-                    ];
+                    if (!is_array($data)) {
+                        $orderError = 'Não foi possível processar seu pedido no momento. Tente novamente em alguns instantes.';
+                    } elseif (isset($data['success']) && $data['success'] === true) {
+                        $orderId = $data['order_id'] ?? null;
+                        $paymentUrl = $data['payment_url'] ?? null;
+
+                        $orderSuccess = [
+                            'order_id' => $orderId,
+                            'payment_url' => $paymentUrl,
+                            'payment_method' => $paymentMethod,
+                        ];
+                    } else {
+                        $orderError = $data['message'] ?? 'Não foi possível finalizar seu pedido.';
+                    }
                 }
             }
         }
@@ -365,6 +431,65 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         box-shadow: 0 0 0 3px rgba(28, 59, 90, 0.12);
       }
 
+      .radio-group {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border: 2px solid var(--color-border-soft);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .radio-option:hover {
+        border-color: var(--color-primary);
+        background: rgba(28, 59, 90, 0.05);
+      }
+
+      .radio-option input[type="radio"] {
+        width: auto;
+        margin: 0;
+      }
+
+      .radio-option input[type="radio"]:checked + label {
+        font-weight: 600;
+        color: var(--color-primary);
+      }
+
+      .radio-option:has(input[type="radio"]:checked) {
+        border-color: var(--color-primary);
+        background: rgba(28, 59, 90, 0.08);
+      }
+
+      .card-fields {
+        display: grid;
+        gap: 20px;
+        padding: 20px;
+        background: rgba(28, 59, 90, 0.03);
+        border-radius: 16px;
+        border: 1px solid var(--color-border-soft);
+        margin-top: 8px;
+      }
+
+      .card-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .card-row-full {
+        grid-template-columns: 1fr;
+      }
+
       .checkbox-group {
         display: flex;
         align-items: flex-start;
@@ -387,6 +512,7 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         cursor: pointer;
         transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
         border: none;
+        text-decoration: none;
       }
 
       .btn-primary {
@@ -410,6 +536,7 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         padding: 18px 20px;
         border-radius: var(--radius-base);
         font-weight: 500;
+        margin-bottom: 24px;
       }
 
       .alert-error {
@@ -420,6 +547,14 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
       .alert-success {
         background: #ecfdf3;
         color: #027a48;
+      }
+
+      .alert-success p {
+        margin: 0 0 12px 0;
+      }
+
+      .alert-success p:last-child {
+        margin-bottom: 0;
       }
 
       .plan-summary h2 {
@@ -457,6 +592,10 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
         .checkout-grid {
           grid-template-columns: 1fr;
         }
+
+        .card-row {
+          grid-template-columns: 1fr;
+        }
       }
 
       @media (max-width: 720px) {
@@ -466,6 +605,14 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
 
         .container {
           padding: 0 18px;
+        }
+
+        .radio-group {
+          flex-direction: column;
+        }
+
+        .radio-option {
+          min-width: auto;
         }
       }
     </style>
@@ -496,22 +643,34 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
           <div class="alert alert-error"><?php echo htmlspecialchars($orderError, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php elseif ($orderSuccess !== null): ?>
           <div class="alert alert-success">
-            <p><?php echo htmlspecialchars($orderSuccess['message'], ENT_QUOTES, 'UTF-8'); ?></p>
-            <?php if (!empty($orderSuccess['payment_url'])): ?>
-              <p><a href="<?php echo htmlspecialchars($orderSuccess['payment_url'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" target="_blank" rel="noopener">Acessar link de pagamento</a></p>
+            <?php if ($orderSuccess['payment_method'] === 'pix' && !empty($orderSuccess['payment_url'])): ?>
+              <p><strong>Pedido criado com sucesso!</strong></p>
+              <p>Seu pedido foi registrado e está aguardando pagamento via PIX.</p>
+              <p style="margin-top: 16px;">
+                <a href="<?php echo htmlspecialchars($orderSuccess['payment_url'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" target="_blank" rel="noopener">
+                  Ver QR Code / Página de pagamento PIX
+                </a>
+              </p>
+            <?php elseif ($orderSuccess['payment_method'] === 'credit_card'): ?>
+              <p><strong>Pagamento com cartão processado!</strong></p>
+              <p>Você receberá as instruções de acesso por e-mail.</p>
+            <?php else: ?>
+              <p><strong>Pedido criado com sucesso!</strong></p>
+              <?php if (!empty($orderSuccess['payment_url'])): ?>
+                <p style="margin-top: 16px;">
+                  <a href="<?php echo htmlspecialchars($orderSuccess['payment_url'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" target="_blank" rel="noopener">
+                    Acessar link de pagamento
+                  </a>
+                </p>
+              <?php endif; ?>
             <?php endif; ?>
             <?php if (!empty($orderSuccess['order_id'])): ?>
-              <p>Código do pedido: <?php echo htmlspecialchars((string) $orderSuccess['order_id'], ENT_QUOTES, 'UTF-8'); ?></p>
+              <p style="margin-top: 12px; font-size: 0.9rem;">Código do pedido: <?php echo htmlspecialchars((string) $orderSuccess['order_id'], ENT_QUOTES, 'UTF-8'); ?></p>
             <?php endif; ?>
-            <p>Um e-mail com os próximos passos foi enviado para você. Nossa equipe pode entrar em contato para garantir o onboarding perfeito.</p>
           </div>
         <?php endif; ?>
 
         <?php if ($fetchError === null && $orderSuccess === null): ?>
-          <div class="alert alert-error" data-checkout-error style="display:none;">
-            Não foi possível finalizar o pedido agora. Tente novamente em alguns instantes.
-          </div>
-
           <div class="checkout-grid">
             <div class="card">
               <form id="checkout-form" method="post" novalidate>
@@ -526,22 +685,103 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
 
                 <div>
                   <label for="customer_name">Seu nome completo</label>
-                  <input type="text" id="customer_name" name="customer_name" placeholder="Ex.: Ana Correia" required />
+                  <input type="text" id="customer_name" name="customer_name" placeholder="Ex.: Ana Correia" value="<?php echo htmlspecialchars($_POST['customer_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required />
                 </div>
 
                 <div>
                   <label for="customer_email">E-mail</label>
-                  <input type="email" id="customer_email" name="customer_email" placeholder="nome@empresa.com" required />
+                  <input type="email" id="customer_email" name="customer_email" placeholder="nome@empresa.com" value="<?php echo htmlspecialchars($_POST['customer_email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required />
                 </div>
 
                 <div>
-                  <label for="customer_phone">Telefone / WhatsApp</label>
-                  <input type="text" id="customer_phone" name="customer_phone" placeholder="(11) 99999-9999" required />
+                  <label for="customer_whatsapp">Telefone / WhatsApp</label>
+                  <input type="text" id="customer_whatsapp" name="customer_whatsapp" placeholder="(11) 99999-9999" value="<?php echo htmlspecialchars($_POST['customer_whatsapp'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required />
                 </div>
 
                 <div>
-                  <label for="company_name">Nome da imobiliária / empresa (opcional)</label>
-                  <input type="text" id="company_name" name="company_name" placeholder="Nome fantasia" />
+                  <label for="customer_cpf_cnpj">CPF ou CNPJ</label>
+                  <input type="text" id="customer_cpf_cnpj" name="customer_cpf_cnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00" value="<?php echo htmlspecialchars($_POST['customer_cpf_cnpj'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required />
+                </div>
+
+                <div>
+                  <label>Forma de pagamento</label>
+                  <div class="radio-group">
+                    <div class="radio-option">
+                      <input type="radio" id="payment_pix" name="payment_method" value="pix" <?php echo (!isset($_POST['payment_method']) || ($_POST['payment_method'] ?? 'pix') === 'pix') ? 'checked' : ''; ?> required />
+                      <label for="payment_pix">PIX</label>
+                    </div>
+                    <div class="radio-option">
+                      <input type="radio" id="payment_card" name="payment_method" value="credit_card" <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'checked' : ''; ?> />
+                      <label for="payment_card">Cartão de Crédito</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="card-fields" class="card-fields" style="display: <?php echo (isset($_POST['payment_method']) && $_POST['payment_method'] === 'credit_card') ? 'grid' : 'none'; ?>;">
+                  <div>
+                    <label for="card_holder_name">Nome do titular do cartão</label>
+                    <input type="text" id="card_holder_name" name="card_holder_name" placeholder="Nome como está no cartão" value="<?php echo htmlspecialchars($_POST['card_holder_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+                  </div>
+
+                  <div>
+                    <label for="card_number">Número do cartão</label>
+                    <input type="text" id="card_number" name="card_number" placeholder="0000 0000 0000 0000" maxlength="19" value="<?php echo htmlspecialchars($_POST['card_number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+                  </div>
+
+                  <div class="card-row">
+                    <div>
+                      <label for="card_expiry_month">Mês</label>
+                      <select id="card_expiry_month" name="card_expiry_month">
+                        <option value="">Mês</option>
+                        <?php for ($i = 1; $i <= 12; $i++): ?>
+                          <option value="<?php echo sprintf('%02d', $i); ?>" <?php echo (isset($_POST['card_expiry_month']) && $_POST['card_expiry_month'] == sprintf('%02d', $i)) ? 'selected' : ''; ?>>
+                            <?php echo sprintf('%02d', $i); ?>
+                          </option>
+                        <?php endfor; ?>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="card_expiry_year">Ano</label>
+                      <select id="card_expiry_year" name="card_expiry_year">
+                        <option value="">Ano</option>
+                        <?php
+                        $currentYear = (int)date('Y');
+                        for ($i = $currentYear; $i <= $currentYear + 10; $i++):
+                        ?>
+                          <option value="<?php echo $i; ?>" <?php echo (isset($_POST['card_expiry_year']) && $_POST['card_expiry_year'] == $i) ? 'selected' : ''; ?>>
+                            <?php echo $i; ?>
+                          </option>
+                        <?php endfor; ?>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="card-row">
+                    <div>
+                      <label for="card_ccv">Código de segurança (CCV)</label>
+                      <input type="text" id="card_ccv" name="card_ccv" placeholder="123" maxlength="4" value="<?php echo htmlspecialchars($_POST['card_ccv'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+                    </div>
+                    <div>
+                      <label for="payment_installments">Parcelas</label>
+                      <select id="payment_installments" name="payment_installments">
+                        <?php for ($i = 1; $i <= 12; $i++): ?>
+                          <option value="<?php echo $i; ?>" <?php echo (isset($_POST['payment_installments']) && $_POST['payment_installments'] == $i) ? 'selected' : ($i === 1 ? 'selected' : ''); ?>>
+                            <?php echo $i === 1 ? 'À vista' : $i . 'x'; ?>
+                          </option>
+                        <?php endfor; ?>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label for="card_postal_code">CEP do titular</label>
+                    <input type="text" id="card_postal_code" name="card_postal_code" placeholder="00000-000" value="<?php echo htmlspecialchars($_POST['card_postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+                  </div>
+
+                  <div>
+                    <label for="card_address_number">Número do endereço</label>
+                    <input type="text" id="card_address_number" name="card_address_number" placeholder="123" value="<?php echo htmlspecialchars($_POST['card_address_number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+                  </div>
                 </div>
 
                 <div class="checkbox-group">
@@ -619,178 +859,83 @@ function renderPlanOptions(array $plans, ?string $selectedCode): string
     </footer>
 
     <script>
-      // Função utilitária para exibir erro no checkout
-      function mostrarErroCheckout(msg) {
-        const el = document.querySelector('[data-checkout-error]');
-        if (!el) {
-          alert(msg); // fallback se não achar o elemento
-          return;
-        }
+      document.addEventListener('DOMContentLoaded', function() {
+        const paymentPix = document.getElementById('payment_pix');
+        const paymentCard = document.getElementById('payment_card');
+        const cardFields = document.getElementById('card-fields');
 
-        el.textContent = msg;
-        el.style.display = 'block';
-      }
-
-      // Função para limpar erro
-      function limparErroCheckout() {
-        const el = document.querySelector('[data-checkout-error]');
-        if (el) {
-          el.textContent = '';
-          el.style.display = 'none';
-        }
-      }
-
-      // Handler único de submit do formulário
-      document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('checkout-form');
-        if (!form) {
-          console.error('[checkout.debug] Formulário #checkout-form não encontrado.');
-          return;
-        }
-
-        form.addEventListener('submit', async function (event) {
-          event.preventDefault();
-          limparErroCheckout();
-          console.log('[checkout.debug] Submit disparado');
-
-          // Coletar campos
-          const planSelectElement = form.querySelector('select[name="plan_code"]');
-          const planHiddenInput = form.querySelector('input[type="hidden"][name="plan_code"]');
-          const nomeInput = form.querySelector('[name="customer_name"]');
-          const emailInput = form.querySelector('[name="customer_email"]');
-          const whatsappInput = form.querySelector('[name="customer_phone"]');
-          const empresaInput = form.querySelector('[name="company_name"]');
-          const termosCheckbox = form.querySelector('[name="accept_terms"]');
-
-          // Obter o código do plano (prioriza o select se existir, senão usa o hidden input)
-          let planCode = null;
-          if (planSelectElement && planSelectElement.value) {
-            planCode = planSelectElement.value;
-          } else if (planHiddenInput && planHiddenInput.value) {
-            planCode = planHiddenInput.value;
+        function toggleCardFields() {
+          if (paymentCard.checked) {
+            cardFields.style.display = 'grid';
+            // Tornar campos obrigatórios
+            cardFields.querySelectorAll('input, select').forEach(function(field) {
+              field.setAttribute('required', 'required');
+            });
+          } else {
+            cardFields.style.display = 'none';
+            // Remover obrigatoriedade
+            cardFields.querySelectorAll('input, select').forEach(function(field) {
+              field.removeAttribute('required');
+            });
           }
+        }
 
-          const customerName = nomeInput ? nomeInput.value.trim() : '';
-          const customerEmail = emailInput ? emailInput.value.trim() : '';
-          const customerWhatsapp = whatsappInput ? whatsappInput.value.trim() : '';
-          const companyName = empresaInput ? empresaInput.value.trim() : '';
-          const termosAceitos = termosCheckbox ? termosCheckbox.checked : false;
+        paymentPix.addEventListener('change', toggleCardFields);
+        paymentCard.addEventListener('change', toggleCardFields);
 
-          console.log('[checkout.debug] Dados coletados:', {
-            planCode,
-            customerName,
-            customerEmail,
-            customerWhatsapp,
-            companyName,
-            termosAceitos
+        // Máscaras
+        const whatsappInput = document.getElementById('customer_whatsapp');
+        const cpfCnpjInput = document.getElementById('customer_cpf_cnpj');
+        const cardNumberInput = document.getElementById('card_number');
+        const cardCcvInput = document.getElementById('card_ccv');
+        const cardPostalCodeInput = document.getElementById('card_postal_code');
+
+        if (whatsappInput) {
+          whatsappInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+              value = value.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+            }
+            e.target.value = value;
           });
+        }
 
-          // Validação básica
-          if (!planCode) {
-            mostrarErroCheckout('Selecione um plano para continuar.');
-            console.warn('[checkout.debug] Validação falhou: planCode vazio');
-            return;
-          }
-
-          if (!customerName || !customerEmail || !customerWhatsapp) {
-            mostrarErroCheckout('Preencha seu nome, e-mail e telefone/WhatsApp para continuar.');
-            console.warn('[checkout.debug] Validação falhou: campos obrigatórios vazios');
-            return;
-          }
-
-          // Validação básica de e-mail
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(customerEmail)) {
-            mostrarErroCheckout('Informe um e-mail válido.');
-            console.warn('[checkout.debug] Validação falhou: e-mail inválido');
-            return;
-          }
-
-          if (!termosAceitos) {
-            mostrarErroCheckout('Você precisa aceitar os termos de uso e a política de privacidade para finalizar a contratação.');
-            console.warn('[checkout.debug] Validação falhou: termos não aceitos');
-            return;
-          }
-
-          const payload = {
-            plan_code: planCode,
-            customer_name: customerName,
-            customer_email: customerEmail,
-            customer_whatsapp: customerWhatsapp,
-            company_name: companyName
-          };
-
-          console.log('[checkout.debug] Enviando requisição para criar pedido...', payload);
-
-          try {
-            const apiUrl = '<?php echo PANEL_API_BASE_URL; ?>/api/orders/create.php';
-            console.log('[checkout.debug] URL da API:', apiUrl);
-
-            // Headers básicos
-            const headers = {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'User-Agent': 'ImobSites-Landing/1.0'
-            };
-
-            // Adicionar headers de autenticação se configurados (opcional para sandbox/testes)
-            <?php if (defined('PANEL_API_KEY') && !empty(PANEL_API_KEY)): ?>
-            headers['X-API-Key'] = '<?php echo addslashes(PANEL_API_KEY); ?>';
-            console.log('[checkout.debug] Header X-API-Key adicionado');
-            <?php endif; ?>
-
-            <?php if (defined('PANEL_API_TOKEN') && !empty(PANEL_API_TOKEN)): ?>
-            headers['Authorization'] = 'Bearer <?php echo addslashes(PANEL_API_TOKEN); ?>';
-            console.log('[checkout.debug] Header Authorization Bearer adicionado');
-            <?php endif; ?>
-
-            console.log('[checkout.debug] Headers da requisição:', headers);
-
-            const response = await fetch(apiUrl, {
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify(payload)
-            });
-
-            let data = null;
-            try {
-              data = await response.json();
-            } catch (e) {
-              console.error('[checkout.debug] Erro ao parsear JSON da resposta:', e);
+        if (cpfCnpjInput) {
+          cpfCnpjInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+              value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+            } else {
+              value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
             }
+            e.target.value = value;
+          });
+        }
 
-            console.log('[checkout.debug] Resposta da API de pedido:', {
-              status: response.status,
-              data
-            });
+        if (cardNumberInput) {
+          cardNumberInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+            e.target.value = value;
+          });
+        }
 
-            if (!response.ok || !data) {
-              mostrarErroCheckout('Não foi possível finalizar o pedido agora. Tente novamente em alguns instantes.');
-              return;
+        if (cardCcvInput) {
+          cardCcvInput.addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+          });
+        }
+
+        if (cardPostalCodeInput) {
+          cardPostalCodeInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 8) {
+              value = value.replace(/^(\d{5})(\d{3})$/, '$1-$2');
             }
-
-            if (data.success === true && data.payment_url) {
-              // Sucesso: redireciona para o payment_url do Asaas
-              console.log('[checkout.debug] Pedido criado com sucesso, redirecionando para:', data.payment_url);
-              window.location.href = data.payment_url;
-              return;
-            }
-
-            if (data.success === false && data.message) {
-              // Erro de negócio vindo da API (ex.: plano inválido, erro Asaas, etc.)
-              mostrarErroCheckout(data.message);
-              return;
-            }
-
-            // Qualquer outra situação inesperada
-            mostrarErroCheckout('Recebemos uma resposta inesperada do servidor ao finalizar o pedido.');
-          } catch (error) {
-            console.error('[checkout.debug] Erro de rede ao criar pedido:', error);
-            mostrarErroCheckout('Não foi possível finalizar o pedido agora. Verifique sua conexão e tente novamente.');
-          }
-        });
+            e.target.value = value;
+          });
+        }
       });
     </script>
   </body>
 </html>
-
