@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sobre Nós | Pixel12 Digital — Agência de Marketing Digital em Blumenau</title>
+  <meta name="description" content="Pixel12 Digital é uma agência de desenvolvimento e marketing digital em Blumenau, SC. Criamos sistemas, plataformas e soluções digitais para empresas que querem captar mais clientes." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #0D1B2A;
+      --navy-mid: #152236;
+      --navy-light: #1E3349;
+      --gold: #C9913A;
+      --gold-light: #E5B263;
+      --gold-pale: #F5E8D3;
+      --cream: #F8F4EF;
+      --white: #FFFFFF;
+      --text-muted: #8FA3B8;
+      --text-body: #2C3E50;
+      --border: rgba(201,145,58,0.2);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text-body);
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4 { font-family: 'Fraunces', serif; line-height: 1.15; }
+
+    /* ─── NAVBAR ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(13,27,42,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 5%;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+      gap: 20px;
+    }
+
+    .nav-logo {
+      font-family: 'Fraunces', serif;
+      font-size: 1.3rem;
+      color: var(--gold-light);
+      letter-spacing: -0.02em;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .nav-logo span { color: var(--white); }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 24px; flex: 1; justify-content: flex-end;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      transition: color 0.2s;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--gold-light); }
+
+    .nav-cta {
+      background: var(--gold);
+      color: var(--navy);
+      padding: 9px 22px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: background 0.2s, transform 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .nav-cta:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+    /* ─── HERO ─── */
+    .about-hero {
+      background: var(--navy);
+      padding: 120px 5% 90px;
+      position: relative;
+      overflow: hidden;
+    }
+    .about-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 50% 60% at 80% 30%, rgba(201,145,58,0.1) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 50% at 10% 70%, rgba(30,51,73,0.6) 0%, transparent 50%);
+    }
+
+    .hero-inner {
+      position: relative; z-index: 1;
+      max-width: 760px;
+    }
+
+    .about-breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+    .about-breadcrumb a { color: var(--gold-light); text-decoration: none; }
+    .about-breadcrumb a:hover { text-decoration: underline; }
+    .about-breadcrumb span { color: #3E5A70; }
+
+    .about-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(201,145,58,0.15);
+      border: 1px solid rgba(201,145,58,0.3);
+      color: var(--gold-light);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 24px;
+    }
+
+    .about-hero h1 {
+      font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+      color: var(--white);
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .about-hero h1 em { font-style: italic; color: var(--gold-light); }
+
+    .about-hero p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.75;
+      max-width: 580px;
+    }
+
+    /* ─── SECTIONS ─── */
+    .section { padding: 80px 5%; }
+    .section-white { background: #fff; }
+    .section-cream { background: var(--cream); }
+    .section-dark { background: var(--navy); }
+    .section-navy-mid { background: var(--navy-mid); }
+
+    .section-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(1.7rem, 2.8vw, 2.4rem);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    /* ─── ABOUT MAIN BLOCK ─── */
+    .about-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: start;
+    }
+
+    .about-text h2 { color: var(--navy); margin-bottom: 20px; }
+
+    .about-text p {
+      font-size: 1rem;
+      line-height: 1.8;
+      color: #3E5A70;
+      margin-bottom: 18px;
+    }
+
+    .about-text p:last-child { margin-bottom: 0; }
+
+    .about-text strong { color: var(--navy); font-weight: 600; }
+
+    /* ─── HIGHLIGHTS SIDEBAR ─── */
+    .about-sidebar { }
+
+    .highlight-card {
+      background: var(--cream);
+      border: 1px solid #E8ECF0;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    .highlight-card:hover { border-color: var(--gold-pale); }
+
+    .highlight-icon {
+      width: 40px; height: 40px;
+      background: var(--gold-pale);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      color: var(--gold);
+      font-size: 1.1rem;
+    }
+
+    .highlight-card h4 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .highlight-card p {
+      font-size: 0.85rem;
+      color: #546E7A;
+      line-height: 1.6;
+    }
+
+    /* ─── VALUES ─── */
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .value-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 28px 24px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .value-card:hover { border-color: rgba(201,145,58,0.3); transform: translateY(-3px); }
+
+    .value-num {
+      font-family: 'Fraunces', serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: rgba(201,145,58,0.3);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .value-card h3 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.97rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+    .value-card p { font-size: 0.87rem; color: var(--text-muted); line-height: 1.65; }
+
+    /* ─── WHAT WE DO ─── */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .service-card {
+      background: #fff;
+      border: 1px solid #E8ECF0;
+      border-radius: 16px;
+      padding: 30px 26px;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .service-card:hover { box-shadow: 0 12px 40px rgba(13,27,42,0.1); transform: translateY(-3px); }
+
+    .service-icon {
+      width: 48px; height: 48px;
+      background: var(--gold-pale);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px;
+      font-size: 1.3rem;
+    }
+
+    .service-card h3 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .service-card p { font-size: 0.88rem; color: #546E7A; line-height: 1.65; }
+
+    /* ─── IMOB CALLOUT ─── */
+    .imob-callout {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      border: 1px solid rgba(201,145,58,0.2);
+      border-radius: 20px;
+      padding: 56px 48px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .imob-callout h2 { color: var(--white); margin-bottom: 14px; font-size: clamp(1.4rem, 2.5vw, 2rem); }
+    .imob-callout p { color: var(--text-muted); line-height: 1.75; font-size: 0.97rem; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--gold);
+      color: var(--navy);
+      padding: 16px 30px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(201,145,58,0.35);
+    }
+    .btn-primary:hover { background: var(--gold-light); transform: translateY(-2px); }
+
+    .btn-whatsapp {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: #25D366;
+      color: #fff;
+      padding: 16px 30px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-whatsapp:hover { background: #22c35e; transform: translateY(-2px); }
+
+    .cta-group { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+
+    /* ─── LOCATION ─── */
+    .location-block {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(201,145,58,0.08);
+      border: 1px solid rgba(201,145,58,0.2);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-top: 32px;
+      max-width: 360px;
+    }
+    .location-block span { font-size: 1.3rem; }
+    .location-block p { font-size: 0.88rem; color: var(--text-body); line-height: 1.5; }
+    .location-block strong { color: var(--navy); }
+
+    /* ─── CONTACT STRIP ─── */
+    .contact-strip {
+      background: var(--navy-mid);
+      padding: 48px 5%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .contact-strip h3 { color: var(--white); font-size: 1.4rem; margin-bottom: 6px; }
+    .contact-strip p { color: var(--text-muted); font-size: 0.92rem; }
+
+    .contact-items { display: flex; gap: 32px; flex-wrap: wrap; }
+    .contact-item { display: flex; align-items: center; gap: 10px; }
+    .contact-item-icon {
+      width: 36px; height: 36px;
+      background: rgba(201,145,58,0.12);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold-light);
+      flex-shrink: 0;
+    }
+    .contact-item a { color: var(--cream); font-size: 0.9rem; text-decoration: none; font-weight: 500; }
+    .contact-item a:hover { color: var(--gold-light); }
+    .contact-item p { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--navy);
+      padding: 32px 5%;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-bottom p { font-size: 0.8rem; color: #3E5A70; }
+    .footer-brand-sm { font-family: 'Fraunces', serif; color: var(--gold-light); font-size: 1.1rem; }
+    .footer-brand-sm span { color: var(--white); }
+
+    /* ─── FLOATING WA ─── */
+    .wa-float {
+      position: fixed; bottom: 28px; right: 28px; z-index: 200;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+    }
+    .wa-tooltip {
+      background: var(--navy);
+      color: var(--cream);
+      font-size: 0.82rem;
+      padding: 8px 14px;
+      border-radius: 8px;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      opacity: 0; transform: translateX(8px);
+      transition: all 0.2s; pointer-events: none;
+    }
+    .wa-float:hover .wa-tooltip { opacity: 1; transform: translateX(0); }
+    .wa-btn {
+      width: 60px; height: 60px; background: #25D366; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+      text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .wa-btn:hover { transform: scale(1.08); box-shadow: 0 8px 30px rgba(37,211,102,0.5); }
+
+    /* ─── ANIMATIONS ─── */
+    .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 860px) {
+      .about-split { grid-template-columns: 1fr; gap: 40px; }
+      .imob-callout { grid-template-columns: 1fr; }
+      .cta-group { flex-direction: row; flex-wrap: wrap; }
+      .contact-strip { flex-direction: column; align-items: flex-start; }
+    }
+
+    @media (max-width: 600px) {
+      .section { padding: 60px 6%; }
+      .imob-callout { padding: 36px 28px; }
+      .nav-links { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Pixel12<span>Digital</span></a>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">Sistema para Corretores</a>
+    <a href="sobre-nos.html" class="nav-link active">Sobre Nós</a>
+    <a href="https://wa.me/5547997309525?text=Ol%C3%A1%2C+vim+da+p%C3%A1gina+sobre+o+sistema+para+corretores+e+gostaria+de+mais+informa%C3%A7%C3%B5es." class="nav-cta" target="_blank" rel="noopener" onclick="trackEvent('whatsapp_click')">Falar com especialista</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="about-hero">
+  <div class="hero-inner">
+    <div class="about-breadcrumb">
+      <a href="index.html">Início</a>
+      <span>/</span>
+      <span>Sobre Nós</span>
+    </div>
+    <div class="about-tag">Pixel12 Digital · Blumenau, SC</div>
+    <h1>Tecnologia e marketing digital<br><em>para quem quer crescer</em></h1>
+    <p>Somos uma agência de desenvolvimento e marketing digital especializada em criar estruturas digitais que ajudam empresas a captar e converter mais clientes.</p>
+  </div>
+</section>
+
+<!-- MAIN ABOUT -->
+<section class="section section-white">
+  <div class="about-split">
+    <div class="about-text fade-up">
+      <div class="section-label">Quem somos</div>
+      <h2 class="section-title">Pixel12 Digital</h2>
+      <p>A <strong>Pixel12 Digital</strong> é uma agência de desenvolvimento e marketing digital localizada em <strong>Blumenau, Santa Catarina</strong>. Trabalhamos com desenvolvimento de sistemas, plataformas digitais e soluções personalizadas para empresas que desejam estruturar sua presença online e melhorar seus processos de captação de clientes.</p>
+      <p>Nossa atuação envolve desde o desenvolvimento técnico de plataformas até a implementação de estratégias de marketing e promoção digital. Cada projeto é construído com foco em resultado — não apenas em tecnologia.</p>
+      <p>Além das soluções desenvolvidas para corretores de imóveis, também criamos <strong>projetos personalizados para empresas de diversos segmentos</strong> que buscam melhorar sua presença digital e seus processos comerciais.</p>
+
+      <div class="location-block">
+        <span>📍</span>
+        <p><strong>Blumenau — Santa Catarina — Brasil</strong><br>
+        CNPJ: 29.714.777/0001-08</p>
+      </div>
+    </div>
+
+    <div class="about-sidebar fade-up">
+      <div class="highlight-card">
+        <div class="highlight-icon">⚙️</div>
+        <h4>Desenvolvimento de sistemas</h4>
+        <p>Plataformas e sistemas personalizados para automatizar processos e melhorar a operação do seu negócio.</p>
+      </div>
+      <div class="highlight-card">
+        <div class="highlight-icon">📈</div>
+        <h4>Marketing e captação digital</h4>
+        <p>Estratégias de tráfego pago, SEO e conversão para atrair clientes qualificados para o seu negócio.</p>
+      </div>
+      <div class="highlight-card">
+        <div class="highlight-icon">🔧</div>
+        <h4>Implantação completa</h4>
+        <p>Cuidamos de toda a configuração técnica. Você foca no seu negócio enquanto nós estruturamos a solução digital.</p>
+      </div>
+      <div class="highlight-card">
+        <div class="highlight-icon">🤝</div>
+        <h4>Projetos personalizados</h4>
+        <p>Cada cliente tem uma necessidade única. Desenvolvemos soluções sob medida para diferentes segmentos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT WE DO -->
+<section class="section section-cream">
+  <div class="section-header fade-up" style="margin-bottom:48px;">
+    <div class="section-label">O que fazemos</div>
+    <h2 class="section-title">Nossas áreas de atuação</h2>
+    <p style="color:#546E7A; font-size:1rem; line-height:1.7; max-width:520px; margin-top:8px;">Da estratégia à entrega, atuamos em todas as etapas do projeto digital.</p>
+  </div>
+
+  <div class="services-grid">
+    <div class="service-card fade-up">
+      <div class="service-icon">💻</div>
+      <h3>Desenvolvimento de plataformas</h3>
+      <p>Sistemas web, portais e plataformas digitais desenvolvidos para atender necessidades específicas de cada negócio.</p>
+    </div>
+    <div class="service-card fade-up">
+      <div class="service-icon">🏠</div>
+      <h3>Sistemas para o mercado imobiliário</h3>
+      <p>Solução completa para corretores e imobiliárias: site profissional, captação automática de leads e CRM integrado.</p>
+    </div>
+    <div class="service-card fade-up">
+      <div class="service-icon">🎯</div>
+      <h3>Tráfego pago e conversão</h3>
+      <p>Campanhas no Google Ads e Meta Ads com foco em geração de contatos qualificados e retorno mensurável.</p>
+    </div>
+    <div class="service-card fade-up">
+      <div class="service-icon">🔗</div>
+      <h3>Integrações e automações</h3>
+      <p>Conexão entre sistemas, WhatsApp, CRM e ferramentas de gestão para eliminar trabalho manual e perda de dados.</p>
+    </div>
+    <div class="service-card fade-up">
+      <div class="service-icon">📊</div>
+      <h3>Presença digital profissional</h3>
+      <p>Sites e landing pages otimizados para conversão, com design profissional e performance para Google.</p>
+    </div>
+    <div class="service-card fade-up">
+      <div class="service-icon">📱</div>
+      <h3>Soluções mobile-first</h3>
+      <p>Todos os projetos desenvolvidos com prioridade para dispositivos móveis, onde a maioria dos usuários está.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VALUES -->
+<section class="section section-dark">
+  <div class="section-header on-dark fade-up" style="margin-bottom:48px; text-align:center;">
+    <div class="section-label" style="color:var(--gold-light)">Nossa abordagem</div>
+    <h2 class="section-title" style="color:var(--white)">Como trabalhamos</h2>
+  </div>
+
+  <div class="values-grid">
+    <div class="value-card fade-up">
+      <div class="value-num">01</div>
+      <h3>Foco em resultado</h3>
+      <p>Desenvolvemos soluções orientadas a objetivos de negócio — captação de leads, conversão e crescimento — não apenas tecnologia pela tecnologia.</p>
+    </div>
+    <div class="value-card fade-up">
+      <div class="value-num">02</div>
+      <h3>Implantação completa</h3>
+      <p>Assumimos a responsabilidade técnica de ponta a ponta. O cliente não precisa entender de código para ter uma solução digital de qualidade.</p>
+    </div>
+    <div class="value-card fade-up">
+      <div class="value-num">03</div>
+      <h3>Simplicidade de uso</h3>
+      <p>Sistemas complexos por dentro, simples por fora. Acreditamos que uma boa solução deve ser intuitiva para quem vai usá-la no dia a dia.</p>
+    </div>
+    <div class="value-card fade-up">
+      <div class="value-num">04</div>
+      <h3>Soluções sob medida</h3>
+      <p>Cada segmento tem dinâmicas próprias. Adaptamos nossas soluções para a realidade de cada cliente, sem fórmulas genéricas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- IMOB PRODUCT CALLOUT -->
+<section class="section section-cream">
+  <div class="imob-callout fade-up">
+    <div>
+      <div class="section-label">Solução para corretores</div>
+      <h2>Sistema completo para captação de leads imobiliários</h2>
+      <p>Nossa solução para o mercado imobiliário reúne site profissional, CRM e integração com WhatsApp em um único sistema. Implantação feita pela nossa equipe — você não precisa configurar nada.</p>
+    </div>
+    <div class="cta-group">
+      <a href="index.html" class="btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Ver o sistema
+      </a>
+      <a href="https://wa.me/5547997309525?text=Ol%C3%A1%2C+vim+da+p%C3%A1gina+sobre+o+sistema+para+corretores+e+gostaria+de+mais+informa%C3%A7%C3%B5es." class="btn-whatsapp" target="_blank" rel="noopener" onclick="trackEvent('whatsapp_click')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Falar no WhatsApp
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT STRIP -->
+<div class="contact-strip">
+  <div>
+    <h3>Entre em contato</h3>
+    <p>Tem um projeto em mente? Fale com nossa equipe.</p>
+  </div>
+  <div class="contact-items">
+    <div class="contact-item">
+      <div class="contact-item-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div>
+        <a href="https://wa.me/5547997309525?text=Ol%C3%A1%2C+vim+da+p%C3%A1gina+sobre+o+sistema+para+corretores+e+gostaria+de+mais+informa%C3%A7%C3%B5es." target="_blank" rel="noopener" onclick="trackEvent('whatsapp_click')">(47) 99730-9525</a>
+        <p>WhatsApp</p>
+      </div>
+    </div>
+    <div class="contact-item">
+      <div class="contact-item-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </div>
+      <div>
+        <a href="mailto:contato@pixel12digital.com.br">contato@pixel12digital.com.br</a>
+        <p>E-mail</p>
+      </div>
+    </div>
+    <div class="contact-item">
+      <div class="contact-item-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div>
+        <a href="#">Blumenau, SC</a>
+        <p>Localização</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <a href="index.html" class="footer-brand-sm">Pixel12<span>Digital</span></a>
+  <div class="footer-bottom">
+    <p>© 2025 Pixel12 Agência de Marketing Digital Ltda · CNPJ: 29.714.777/0001-08</p>
+    <p style="margin-top:4px;">Blumenau — Santa Catarina — Brasil</p>
+  </div>
+  <div style="display:flex;gap:16px;">
+    <a href="#" style="font-size:0.78rem;color:#3E5A70;text-decoration:none;">Política de Privacidade</a>
+    <a href="#" style="font-size:0.78rem;color:#3E5A70;text-decoration:none;">Termos de Uso</a>
+  </div>
+</footer>
+
+<!-- FLOATING WA -->
+<div class="wa-float">
+  <div class="wa-tooltip">Falar com especialista agora</div>
+  <a href="https://wa.me/5547997309525?text=Ol%C3%A1%2C+vim+da+p%C3%A1gina+sobre+o+sistema+para+corretores+e+gostaria+de+mais+informa%C3%A7%C3%B5es." class="wa-btn" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" onclick="trackEvent('whatsapp_float_click')">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </a>
+</div>
+
+<script>
+  // Scroll fade-up
+  const fadeEls = document.querySelectorAll('.fade-up');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  fadeEls.forEach(el => obs.observe(el));
+
+  // Conversion tracking
+  function trackEvent(eventName) {
+    if (typeof gtag !== 'undefined') gtag('event', eventName);
+    if (typeof fbq !== 'undefined') fbq('track', 'Contact');
+    console.log('[Conversion]', eventName);
+  }
+
+  document.querySelectorAll('a[href*="wa.me"]').forEach(a => {
+    a.addEventListener('click', () => trackEvent('whatsapp_click'));
+  });
+</script>
+</body>
+</html>
